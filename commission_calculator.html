@@ -1,0 +1,90 @@
+<div style="padding:1rem 0">
+<h2 class="sr-only">증권사 수수료 계산기 — 투자금액과 거래 횟수를 조절하여 증권사별 연간 수수료를 비교합니다</h2>
+
+<div style="background:var(--color-background-secondary);border-radius:var(--border-radius-lg);padding:1.25rem;margin-bottom:1rem">
+  <p style="font-size:13px;color:var(--color-text-secondary);margin:0 0 1rem">투자금액·거래횟수를 조절하면 아래 결과가 바로 바뀝니다</p>
+
+  <div style="margin-bottom:1rem">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+      <label style="font-size:14px;color:var(--color-text-secondary)">1회 거래금액</label>
+      <span id="amtLabel" style="font-size:15px;font-weight:500;color:var(--color-text-primary)">1,000만원</span>
+    </div>
+    <input type="range" id="amt" min="1" max="50" step="1" value="10" style="width:100%">
+    <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--color-text-tertiary);margin-top:2px"><span>100만원</span><span>5000만원</span></div>
+  </div>
+
+  <div>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+      <label style="font-size:14px;color:var(--color-text-secondary)">연간 거래 횟수 (매수+매도 합산)</label>
+      <span id="cntLabel" style="font-size:15px;font-weight:500;color:var(--color-text-primary)">24회</span>
+    </div>
+    <input type="range" id="cnt" min="2" max="200" step="2" value="24" style="width:100%">
+    <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--color-text-tertiary);margin-top:2px"><span>2회</span><span>200회</span></div>
+  </div>
+</div>
+
+<div id="results" style="display:flex;flex-direction:column;gap:10px"></div>
+
+<p style="font-size:11px;color:var(--color-text-tertiary);margin-top:1rem;line-height:1.6">
+  ※ 거래 수수료만 계산한 금액입니다. 유관기관 수수료(0.004%)·증권거래세(0.18%, 매도 시)는 별도 발생합니다.<br>
+  ※ 이벤트 미적용 기본 수수료 기준은 증권사마다 상이합니다. 계좌 개설 시 이벤트 신청 여부를 꼭 확인하세요.
+</p>
+</div>
+
+<script>
+const brokers = [
+  { name:'토스증권', event:0, base:0.015, color:'#1D9E75', colorLight:'#E1F5EE', tag:'무료 이벤트(~6월말)' },
+  { name:'키움 영웅문S#', event:0.015, base:0.015, color:'#378ADD', colorLight:'#E6F1FB', tag:'기본 수수료 최저' },
+  { name:'미래에셋 M-STOCK', event:0.015, base:0.05, color:'#185FA5', colorLight:'#E6F1FB', tag:'이벤트 적용 시' },
+  { name:'한국투자증권', event:0.015, base:0.05, color:'#534AB7', colorLight:'#EEEDFE', tag:'이벤트 적용 시' },
+  { name:'삼성증권 mPOP', event:0.015, base:0.05, color:'#BA7517', colorLight:'#FAEEDA', tag:'평생 우대 이벤트' },
+  { name:'KB증권 마블', event:0.015, base:0.065, color:'#993C1D', colorLight:'#FAECE7', tag:'평생 우대 이벤트' },
+];
+
+const amtSlider = document.getElementById('amt');
+const cntSlider = document.getElementById('cnt');
+const amtLabel  = document.getElementById('amtLabel');
+const cntLabel  = document.getElementById('cntLabel');
+const results   = document.getElementById('results');
+
+function fmt(n){ return Math.round(n).toLocaleString('ko-KR'); }
+
+function render(){
+  const amt = amtSlider.value * 100 * 10000;
+  const cnt = parseInt(cntSlider.value);
+  amtLabel.textContent = (amtSlider.value * 100).toLocaleString() + '만원';
+  cntLabel.textContent = cnt + '회';
+
+  const eventMin  = brokers.reduce((m,b)=>Math.min(m, amt * (b.event/100) * cnt), Infinity);
+
+  results.innerHTML = brokers.map(b => {
+    const eventFee = Math.round(amt * (b.event/100) * cnt);
+    const baseFee  = Math.round(amt * (b.base/100)  * cnt);
+    const diff     = baseFee - eventFee;
+    const barPct   = Math.min(100, Math.round((eventFee / (amt * 0.001 * cnt)) * 100));
+    const isBest   = eventFee === eventMin;
+
+    return `
+    <div style="background:var(--color-background-primary);border:${isBest?'2px solid '+b.color:'0.5px solid var(--color-border-tertiary)'};border-radius:var(--border-radius-lg);padding:1rem 1.25rem">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+        <div style="display:flex;align-items:center;gap:8px">
+          <span style="font-size:15px;font-weight:500;color:var(--color-text-primary)">${b.name}</span>
+          ${isBest?`<span style="font-size:11px;font-weight:500;background:${b.colorLight};color:${b.color};padding:2px 8px;border-radius:20px">최저 수수료</span>`:`<span style="font-size:11px;color:var(--color-text-tertiary)">${b.tag}</span>`}
+        </div>
+        <span style="font-size:18px;font-weight:500;color:${b.color}">${fmt(eventFee)}원</span>
+      </div>
+      <div style="height:6px;background:var(--color-background-secondary);border-radius:4px;margin-bottom:6px;overflow:hidden">
+        <div style="height:100%;width:${Math.max(2,Math.round(eventFee/(amt*0.001*cnt)*100))}%;background:${b.color};border-radius:4px;transition:width 0.3s"></div>
+      </div>
+      <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--color-text-tertiary)">
+        <span>이벤트 미적용 시: <b style="color:var(--color-text-secondary)">${fmt(baseFee)}원</b></span>
+        ${diff>0?`<span>이벤트로 절약: <b style="color:#1D9E75">-${fmt(diff)}원</b></span>`:`<span style="color:#1D9E75">이벤트=기본</span>`}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+amtSlider.addEventListener('input', render);
+cntSlider.addEventListener('input', render);
+render();
+</script>
